@@ -1,0 +1,11 @@
+Model Information:
+* title:	Jesus Christ Statue
+* source:	https://sketchfab.com/3d-models/jesus-christ-statue-375d626ccd524c439e9dc81c1033828e
+* author:	amcgi (https://sketchfab.com/amcgi)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Jesus Christ Statue" (https://sketchfab.com/3d-models/jesus-christ-statue-375d626ccd524c439e9dc81c1033828e) by amcgi (https://sketchfab.com/amcgi) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
