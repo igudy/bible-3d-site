@@ -165,7 +165,9 @@ export function Characters() {
       // hold this panel while the next one slides up over it, and push it back into the dark
       ScrollTrigger.create({ trigger: p, start: 'top top', pin: true, pinSpacing: false })
       gsap.to(p.querySelector('.char-inner'), {
-        scale: 0.88, opacity: 0.25, borderRadius: 18, ease: 'none',
+        scale: 0.88, opacity: 0.25, ease: 'none',
+        // no borderRadius here: it is not a composited property, so tweening it repaints
+        // the whole full-screen panel every frame — the single biggest cost in this section
         scrollTrigger: { trigger: panels[i + 1], start: 'top bottom', end: 'top top', scrub: true },
       })
     })
@@ -184,7 +186,7 @@ export function Characters() {
       {characters.map((c, i) => (
         <article key={c.id} className="char-panel relative h-dvh overflow-hidden bg-[var(--c0)]"
                  style={{ zIndex: 5 + i, '--c0': c.palette[0], '--c1': c.palette[1], '--c2': c.palette[2] }}>
-          <div className="char-inner absolute inset-0 origin-top overflow-hidden will-change-[transform,opacity]">
+          <div className="char-inner absolute inset-0 origin-top overflow-hidden">
             <div className="char-media absolute inset-x-0 -inset-y-[12%] text-[var(--c2)]">
               {c.youtube ? <YouTubeBg id={c.youtube} start={c.start} />
                 : c.image ? <img className="size-full object-cover" src={c.image} alt="" loading="lazy" />

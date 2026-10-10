@@ -176,7 +176,12 @@ nav::before {
 .char-inner { background: radial-gradient(90% 80% at 70% 40%, var(--c1), var(--c0) 70%) }
 .char-art { background: radial-gradient(40% 50% at 68% 50%, color-mix(in srgb, var(--c2) 22%, transparent), transparent 70%) }
 .char-shade { background: linear-gradient(90deg, var(--c0) 0, color-mix(in srgb, var(--c0) 70%, transparent) 38%, transparent 70%), linear-gradient(0deg, var(--c0), transparent 35%) }
-.emblem { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--c2) 60%, transparent)) }
+/* The emblem sits inside a panel that is scaled every scroll frame, and a drop-shadow
+   re-rasterises the whole SVG on each step. Phones cannot absorb that; they get the
+   line art without the glow. */
+@media (min-width: 900px) {
+  .emblem { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--c2) 60%, transparent)) }
+}
 
 /* a few multi-stop section backdrops and scrims */
 .disciple::after { content: ""; position: absolute; inset: auto -30% -40% auto; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgb(226 182 90 / 0.18), transparent 70%) }

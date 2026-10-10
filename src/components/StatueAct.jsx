@@ -22,8 +22,13 @@ const ease = [0.2, 0.7, 0.2, 1]
 // the giant word, sliding behind (and as an outline in front of) the figure
 // shared type for the giant word; each use sets its own horizontal anchor so the
 // sliding version (left-0) and the splitting halves (left-1/2) never fight over `left`
-const WORD_TYPE = 'absolute top-[56%] -translate-y-1/2 whitespace-nowrap pointer-events-none font-sans ' +
-  'font-bold text-[60vw] leading-[0.78] tracking-[-0.07em] uppercase lg:text-[44vw]'
+const WORD_BASE = 'absolute top-[56%] -translate-y-1/2 whitespace-nowrap pointer-events-none font-sans ' +
+  'font-bold leading-[0.78] tracking-[-0.07em] uppercase'
+const WORD_TYPE = `${WORD_BASE} text-[60vw] lg:text-[44vw]`
+// A word that parts down the middle has to fit the screen first, or both halves slide
+// straight off a phone and the chapter reads as an empty page. 38vw puts the whole of a
+// five-letter word across the viewport; wide screens keep the oversized cut.
+const WORD_SPLIT_TYPE = `${WORD_BASE} text-[38vw] lg:text-[44vw]`
 const WORD = `${WORD_TYPE} left-0`
 const META = 'absolute z-[4] font-mono text-[10px] leading-[1.6] tracking-[0.2em] uppercase text-slate-ink'
 
@@ -83,9 +88,12 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
     let slide
     if (split && halfL.current) {
       // the word opens from the middle, like the stone rolling back
+      // part them to about a third in from each edge on a phone, so both halves stay
+      // readable; the wide-screen travel carries them further out as before
+      const [toL, toR] = NARROW ? [-70, -30] : [-94, -6]
       slide = gsap.timeline({ scrollTrigger: track })
-        .fromTo(halfL.current, { xPercent: -50 }, { xPercent: -94, ease: 'none' }, 0)
-        .fromTo(halfR.current, { xPercent: -50 }, { xPercent: -6, ease: 'none' }, 0)
+        .fromTo(halfL.current, { xPercent: -50 }, { xPercent: toL, ease: 'none' }, 0)
+        .fromTo(halfR.current, { xPercent: -50 }, { xPercent: toR, ease: 'none' }, 0)
     } else if (back.current) {
       // the whole word slides past: in from one edge, out of the other
       const off = () => back.current.offsetWidth - innerWidth * 0.65
@@ -105,8 +113,8 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
         {layout === 'beats' && (split ? (
           <div className="absolute inset-0 z-[1] overflow-hidden" aria-hidden="true">
             {/* the same word twice, each clipped to one half, parting as you scroll */}
-            <div className={`${WORD_TYPE} left-1/2 text-slate-ink [clip-path:inset(0_50%_0_0)]`} ref={halfL}>{word}</div>
-            <div className={`${WORD_TYPE} left-1/2 text-slate-ink [clip-path:inset(0_0_0_50%)]`} ref={halfR}>{word}</div>
+            <div className={`${WORD_SPLIT_TYPE} left-1/2 text-slate-ink [clip-path:inset(0_50%_0_0)]`} ref={halfL}>{word}</div>
+            <div className={`${WORD_SPLIT_TYPE} left-1/2 text-slate-ink [clip-path:inset(0_0_0_50%)]`} ref={halfR}>{word}</div>
           </div>
         ) : (
           <div className={`${WORD} z-[1] text-slate-ink ${frame === 'scene' ? 'lg:text-[30vw]' : ''}`} ref={back} aria-hidden="true">{word}</div>
