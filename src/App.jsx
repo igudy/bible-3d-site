@@ -8,7 +8,6 @@ import Worlds from './components/Worlds'
 import StatueAct from './components/StatueAct'
 
 
-const Scene = lazy(() => import('./three/Scene'))
 const Stage = lazy(() => import('./components/Stage'))
 const CrossAct = lazy(() => import('./components/CrossAct'))
 
@@ -53,8 +52,9 @@ export default function App() {
 
   return (
     <>
-      {/* the sky is fully covered by the opaque chapters, so stop drawing it there */}
-      <Suspense fallback={null}><Scene hidden={active.world === 'stone' || active.world === 'dusk'} /></Suspense>
+      {/* No 3D sky any more. It sat at z-0 under the night world's own opaque gradient and
+          was switched off entirely for the stone and dusk chapters, so it rendered a
+          starfield nobody could see — behind a second starfield the night world draws in 2D. */}
       <Worlds />
       <Suspense fallback={null}><Stage relic={active.relic} pos={active.stage} /></Suspense>
       <GridLines />
