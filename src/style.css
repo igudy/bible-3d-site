@@ -68,15 +68,17 @@
   .btn {
     @apply inline-flex items-center gap-[14px] bg-navy text-white border border-white/20
            font-mono text-[11px] tracking-[0.22em] uppercase py-3 pr-3 pl-4 rounded-[3px]
-           cursor-pointer transition-colors duration-250 hover:bg-navy-hover;
+           cursor-pointer transition-colors duration-250 hover:bg-navy-hover
+           min-h-11 lg:min-h-0;          /* 44px: a comfortable tap target on a phone */
   }
   .btn .arr { @apply grid place-items-center size-5 border border-white/40 text-[11px] tracking-normal }
-  .btn.ghost { @apply bg-white/10 backdrop-blur-lg }
-  .btn.sm { @apply py-2 pr-2 pl-3 text-[10px] }
+  /* no backdrop-blur: each one is a compositing layer that re-blurs whatever scrolls behind it */
+  .btn.ghost { @apply bg-white/15 }
+  .btn.sm { @apply py-2 pr-2 pl-3 text-[10px] min-h-10 lg:min-h-0 }
 
   .chip {
     @apply inline-block font-mono text-[10px] tracking-[0.22em] uppercase
-           bg-chip px-[9px] py-[5px] rounded-sm mb-[18px] backdrop-blur-sm;
+           bg-chip px-[9px] py-[5px] rounded-sm mb-[18px];
   }
   .label {
     @apply block font-mono text-[10px] tracking-[0.24em] uppercase text-ink2 mb-4

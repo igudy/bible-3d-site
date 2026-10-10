@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
 import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js'
 import { D, measure, unitsPerPx, useAnchors } from './anchors'
 import { makeEnv, makeSky, glowTex, raysTex, starTex } from './textures'
+
+const Post = lazy(() => import('./Post'))
 
 const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 const mobile = typeof innerWidth !== 'undefined' && innerWidth < 900
@@ -203,7 +203,7 @@ export default function Scene({ hidden }) {
       style={{ position: 'fixed', inset: 0, zIndex: 0 }}
       dpr={[1, mobile ? 1.25 : 1.5]}
       frameloop={hidden ? 'never' : 'always'}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      gl={{ antialias: !mobile, powerPreference: 'high-performance' }}
       camera={{ fov: 40, near: 0.1, far: 200, position: [0, 0, D] }}
       aria-hidden="true"
     >
@@ -215,10 +215,7 @@ export default function Scene({ hidden }) {
             : <Gyro key={a.id} anchor={a} />,
       )}
       <Stars />
-      <EffectComposer multisampling={4}>
-        <Bloom intensity={0.55} luminanceThreshold={0.9} luminanceSmoothing={0.15} mipmapBlur />
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
+      {!mobile && <Suspense fallback={null}><Post /></Suspense>}
     </Canvas>
   )
 }

@@ -13,7 +13,7 @@ const ease = [0.2, 0.7, 0.2, 1]
 
 // Every section shares this frame: full height, generous top padding, and a left
 // inset on wide screens that clears the fixed side rail.
-const SECTION = 'relative min-h-screen px-gutter pt-[100px] pb-20 lg:pt-[120px] lg:pb-[100px] lg:pl-rail'
+const SECTION = 'relative min-h-dvh px-gutter pt-[100px] pb-20 lg:pt-[120px] lg:pb-[100px] lg:pl-rail'
 
 /* Giant word behind the 3D object: slides sideways as you scroll through its section (GSAP scrub) */
 function Mega({ text, size }) {
@@ -108,7 +108,7 @@ function Verse({ text, refText, side }) {
     <figure
       ref={ref}
       className={`verse relative z-[4] m-0 mt-7 w-[min(100%,460px)] self-start rounded-md border border-line
-                  bg-white/[0.06] px-[22px] pt-5 pb-4 backdrop-blur-xl
+                  bg-white/[0.09] px-[22px] pt-5 pb-4
                   ${side === 'right' ? 'lg:mr-[2vw] lg:self-end' : ''}`}
     >
       <Reveal>
@@ -182,7 +182,7 @@ export function Characters() {
       </div>
 
       {characters.map((c, i) => (
-        <article key={c.id} className="char-panel relative h-screen overflow-hidden bg-[var(--c0)]"
+        <article key={c.id} className="char-panel relative h-dvh overflow-hidden bg-[var(--c0)]"
                  style={{ zIndex: 5 + i, '--c0': c.palette[0], '--c1': c.palette[1], '--c2': c.palette[2] }}>
           <div className="char-inner absolute inset-0 origin-top overflow-hidden will-change-[transform,opacity]">
             <div className="char-media absolute inset-x-0 -inset-y-[12%] text-[var(--c2)]">
@@ -233,7 +233,7 @@ export function Disciples() {
   }, { scope: root })
   return (
     // pinned sections become their own stacking layer, so lift them above the fixed backgrounds
-    <section id="disciples" data-world="night" data-stage="off" ref={root} className="relative z-[4] h-screen min-h-0 overflow-hidden p-0">
+    <section id="disciples" data-world="night" data-stage="off" ref={root} className="relative z-[4] h-dvh min-h-0 overflow-hidden p-0">
       <div className="flex h-full w-max items-center gap-[22px] pr-[10vw] pl-gutter lg:pl-rail" ref={track}>
         <div className="mr-[6vw] w-[min(520px,80vw)] flex-none">
           <span className="chip">The Twelve</span>
@@ -244,7 +244,7 @@ export function Disciples() {
           <motion.a
             key={d.name + i} href={read(d.ref)} target="_blank" rel="noopener"
             className="disciple relative flex h-[380px] w-[250px] flex-none flex-col overflow-hidden rounded-lg border
-                       border-white/15 bg-linear-160 from-white/10 to-white/[0.02] p-6 backdrop-blur-md lg:h-[420px] lg:w-[300px]"
+                       border-white/15 bg-linear-160 from-white/[0.14] to-white/[0.05] p-6 lg:h-[420px] lg:w-[300px]"
             whileHover={{ y: -10, rotate: i % 2 ? 1 : -1 }} transition={{ type: 'spring', stiffness: 220, damping: 18 }}
           >
             <span className="font-serif text-[64px] leading-none text-gold">{String(i + 1).padStart(2, '0')}</span>
@@ -301,11 +301,11 @@ export function Library() {
                 {g.books.map(([name, ch]) => (
                   <motion.a
                     key={name} href={read(name + ' 1')} target="_blank" rel="noopener" title={`${name} · ${ch} chapters`}
-                    className="spine flex w-[30px] flex-col items-center justify-between rounded-t-[3px] rounded-b-[1px] pt-2 pb-1.5
+                    className="spine flex w-[21px] lg:w-[30px] flex-col items-center justify-between rounded-t-[3px] rounded-b-[1px] pt-2 pb-1.5
                                [box-shadow:inset_-3px_0_0_rgb(0_0_0/0.25),inset_2px_0_0_rgb(255_255_255/0.12)]"
                     style={{ height: 70 + ch * 1.7 }} whileHover={{ y: -14 }}
                   >
-                    <span className="font-serif text-sm whitespace-nowrap">{name}</span>
+                    <span className="font-serif text-xs lg:text-sm whitespace-nowrap">{name}</span>
                     <small className="font-mono text-[8px] opacity-75">{ch}</small>
                   </motion.a>
                 ))}

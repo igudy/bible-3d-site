@@ -13,7 +13,10 @@ import { church, invitation, read } from '../data/content'
 import { Btn } from './primitives'
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-export const DPR = [1, innerWidth < 900 ? 1.25 : 1.5]
+const NARROW = innerWidth < 900
+export const DPR = [1, NARROW ? 1.25 : 1.5]
+// antialiasing costs a lot on phone GPUs and is barely visible at that pixel density
+export const GL = { antialias: !NARROW, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }
 const ease = [0.2, 0.7, 0.2, 1]
 
 // the giant word, sliding behind (and as an outline in front of) the figure
@@ -36,18 +39,34 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
   const root = useRef()
   const progress = useRef(0)
   const [beat, setBeat] = useState(0)
+  const lastBeat = useRef(0)
   const back = useRef(), front = useRef()
   const halfL = useRef(), halfR = useRef()
-  // a chapter with a model needs room to turn it; a text-only one should move briskly
-  const tall = screens ?? (model ? 4.2 : 2.2)
-  const [live, setLive] = useState(true)
+  // a chapter with a model needs room to turn it; a text-only one should move briskly.
+  // Phones get a shorter run — the same story with far less thumb work.
+  const tall = screens ?? (model ? (NARROW ? 3 : 4.2) : (NARROW ? 1.6 : 2.2))
+  const [live, setLive] = useState(false)
+  const [near, setNear] = useState(false)
 
-  // only render the 3D while the chapter is on screen
+  // Two rings. The outer one mounts the canvas a screen early, so the model is ready
+  // before you reach it; the inner one decides whether to actually draw frames.
+  // Leaving the canvas mounted but paused is not enough — a parked WebGL context still
+  // holds its GPU memory and its own copy of the model, and this page has several.
   useEffect(() => {
     if (!model) return
-    const io = new IntersectionObserver(([e]) => setLive(e.isIntersecting), { rootMargin: '10% 0px' })
-    io.observe(root.current)
-    return () => io.disconnect()
+    const el = root.current
+    // Measure once up front. IntersectionObserver only reports once the page is actually
+    // being composited, so a tab opened in the background would otherwise paint the
+    // opening chapter with no figure in it until it first draws a frame.
+    const r = el.getBoundingClientRect()
+    if (r.top < innerHeight * 2 && r.bottom > -innerHeight) {
+      setNear(true)
+      setLive(r.top < innerHeight * 1.1 && r.bottom > -innerHeight * 0.1)
+    }
+    const draw = new IntersectionObserver(([e]) => setLive(e.isIntersecting), { rootMargin: '10% 0px' })
+    const hold = new IntersectionObserver(([e]) => setNear(e.isIntersecting), { rootMargin: '100% 0px' })
+    draw.observe(el); hold.observe(el)
+    return () => { draw.disconnect(); hold.disconnect() }
   }, [model])
 
   useLayoutEffect(() => {
@@ -55,7 +74,9 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
       trigger: root.current, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: true,
       onUpdate: (self) => {
         progress.current = self.progress
-        setBeat(Math.min(beats.length - 1, Math.floor(self.progress * beats.length * 0.999)))
+        // this runs every scroll frame; only pay for a React render when the beat really turns
+        const next = Math.min(beats.length - 1, Math.floor(self.progress * beats.length * 0.999))
+        if (next !== lastBeat.current) { lastBeat.current = next; setBeat(next) }
       },
     })
     const track = { trigger: root.current, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: true }
@@ -78,9 +99,9 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
   const b = beats[beat]
   return (
     <section id={id} data-world="stone" data-stage="off" ref={root}
-             style={{ height: `${tall * 100}vh` }}
+             style={{ height: `${tall * 100}dvh` }}
              className={`relative z-[4] min-h-0 p-0 text-slate-ink ${tone === 'warm' ? 'bg-[#efe6d8]' : 'bg-[#e9e8e5]'}`}>
-      <div className={`${tone === 'warm' ? 'statue-frame-warm' : 'statue-frame'} sticky top-0 h-screen overflow-hidden`}>
+      <div className={`${tone === 'warm' ? 'statue-frame-warm' : 'statue-frame'} sticky top-0 h-dvh overflow-hidden`}>
         {layout === 'beats' && (split ? (
           <div className="absolute inset-0 z-[1] overflow-hidden" aria-hidden="true">
             {/* the same word twice, each clipped to one half, parting as you scroll */}
@@ -91,10 +112,10 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
           <div className={`${WORD} z-[1] text-slate-ink ${frame === 'scene' ? 'lg:text-[30vw]' : ''}`} ref={back} aria-hidden="true">{word}</div>
         ))}
 
-        {model && (
+        {model && near && (
           <Canvas className="absolute! inset-0 z-[2]" camera={{ fov: 30, position: [0, 0, 9] }} dpr={DPR}
-                  frameloop={live ? 'always' : 'never'}
-                  gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}>
+                  frameloop={live ? 'always' : 'demand'}
+                  gl={GL}>
             <Studio tone={tone} />
             <Suspense fallback={null}><Statue progress={progress} url={model} fit={fit} lift={lift} frame={frame} surface={surface} /></Suspense>
           </Canvas>
@@ -129,12 +150,12 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
             <AnimatePresence mode="wait">
               <motion.div
                 key={beat}
-                className={`statue-beat ${b.side} absolute inset-x-gutter bottom-[90px] z-[4] max-w-none rounded-sm bg-[rgb(246_245_242/0.82)]
-                            px-5 py-[18px] text-slate-ink backdrop-blur-xl [box-shadow:0_20px_50px_-30px_rgb(0_0_0/0.35)]
+                className={`statue-beat ${b.side} absolute inset-x-gutter bottom-[90px] z-[4] max-w-none rounded-sm bg-[rgb(246_245_242/0.96)]
+                            px-5 py-[18px] text-slate-ink [box-shadow:0_20px_50px_-30px_rgb(0_0_0/0.35)]
                             lg:inset-x-auto lg:top-[20%] lg:bottom-auto lg:max-w-[360px]
                             ${b.side === 'right' ? 'lg:right-gutter lg:text-right' : 'lg:left-rail'}`}
-                initial={{ opacity: 0, y: 30, filter: 'blur(8px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -20, filter: 'blur(6px)' }} transition={{ duration: 0.8, ease }}
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.8, ease }}
               >
                 <span className="label text-slate-ink/60">{b.kicker}</span>
                 <p className="font-serif text-2xl leading-[1.1] lg:text-[clamp(26px,2.5vw,38px)]">{b.text}</p>
@@ -173,7 +194,7 @@ function Studio({ tone }) {
 let draco
 function Statue({ progress, url, fit, lift, frame, surface }) {
   const gltf = useLoader(GLTFLoader, url, (l) => {
-    l.setMeshoptDecoder(MeshoptDecoder)
+    l.setMeshoptDecoder(MeshoptDecoder)   // statue.glb is meshopt-compressed, not Draco
     if (!draco) { draco = new DRACOLoader(); draco.setDecoderPath('/draco/') }
     l.setDRACOLoader(draco)
   })
@@ -308,7 +329,7 @@ function Invitation() {
         className="absolute inset-x-gutter bottom-6 z-[4] lg:bottom-10 lg:left-1/2 lg:w-[min(92vw,720px)] lg:-translate-x-1/2 lg:inset-x-auto"
         initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1, ease, delay: 0.2 }}
       >
-        <div className="rounded-sm bg-[rgb(255_250_240/0.86)] px-6 py-5 backdrop-blur-xl [box-shadow:0_20px_50px_-30px_rgb(60_40_10/0.5)]">
+        <div className="rounded-sm bg-[rgb(255_250_240/0.97)] px-6 py-5 [box-shadow:0_20px_50px_-30px_rgb(60_40_10/0.5)]">
           <p className="hidden text-center text-[15px] leading-[1.5] text-slate-ink/80 lg:block">{v.lead}</p>
           <p className="border-l-2 border-[#8a5a2a] pl-4 font-serif text-[clamp(17px,1.7vw,23px)] leading-[1.25] text-slate-ink lg:mt-4 lg:border-l-0 lg:pl-0 lg:text-center">
             {v.prayer}

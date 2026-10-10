@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { DPR } from './StatueAct'
+import { DPR, GL } from './StatueAct'
 import * as THREE from 'three'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -30,12 +30,17 @@ export default function CrossAct() {
   const turn = useRef(0)   // 0 → 1 across the whole section
   const [beat, setBeat] = useState(0)
   const [live, setLive] = useState(false)
+  const [near, setNear] = useState(false)
 
   // only render the 3D while this chapter is on screen
   useEffect(() => {
+    const r = root.current.getBoundingClientRect()
+    if (r.top < innerHeight * 2 && r.bottom > -innerHeight) setNear(true)
+    const hold = new IntersectionObserver(([e]) => setNear(e.isIntersecting), { rootMargin: '100% 0px' })
+    hold.observe(root.current)
     const io = new IntersectionObserver(([e]) => setLive(e.isIntersecting), { rootMargin: '10% 0px' })
     io.observe(root.current)
-    return () => io.disconnect()
+    return () => { io.disconnect(); hold.disconnect() }
   }, [])
 
   useGSAP(() => {
@@ -47,14 +52,16 @@ export default function CrossAct() {
 
   const b = crossBeats[beat]
   return (
-    <section id="cross" data-world="dusk" data-stage="off" ref={root} className="relative z-[4] h-[300vh] min-h-0 bg-[#0a0509] p-0 lg:h-[320vh]">
-      <div className="cross-frame sticky top-0 h-screen overflow-hidden">
-        <Canvas className="absolute! inset-0 z-[1]" camera={{ fov: 32, position: [0, 0, 10] }} dpr={DPR}
-                frameloop={live ? 'always' : 'never'}
-                gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}>
-          <Lights />
-          {live && <Suspense fallback={null}><Group turn={turn} /></Suspense>}
-        </Canvas>
+    <section id="cross" data-world="dusk" data-stage="off" ref={root} className="relative z-[4] h-[300dvh] min-h-0 bg-[#0a0509] p-0 lg:h-[320dvh]">
+      <div className="cross-frame sticky top-0 h-dvh overflow-hidden">
+        {near && (
+          <Canvas className="absolute! inset-0 z-[1]" camera={{ fov: 32, position: [0, 0, 10] }} dpr={DPR}
+                  frameloop={live ? 'always' : 'demand'}
+                  gl={GL}>
+            <Lights />
+            {live && <Suspense fallback={null}><Group turn={turn} /></Suspense>}
+          </Canvas>
+        )}
 
         {/* the title already names the section on small screens */}
         <div className={`${META} top-24 left-rail`}>The Cross<br /><span className="text-ink3">Death &amp; burial</span></div>

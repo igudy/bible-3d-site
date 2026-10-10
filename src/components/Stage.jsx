@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { makeEnv } from '../three/textures'
 import { RELICS } from '../three/Relics'
-import { DPR } from './StatueAct'
+import { DPR, GL } from './StatueAct'
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 const pointer = { x: 0, y: 0 }
@@ -92,7 +92,14 @@ function StageScene({ relic, pos }) {
 
 export default function Stage({ relic, pos }) {
   // nothing to draw between relic sections, so stop the loop entirely
-  const idle = !relic || pos === 'off'
+  // On a phone the shelf relic is hidden anyway (PLACE.hideNarrow), so standing up a
+  // full-screen WebGL context to draw an invisible object is pure cost.
+  const narrow = innerWidth < 900
+  const idle = !relic || pos === 'off' || (narrow && PLACE[pos]?.hideNarrow)
+  // never mount the context before the first relic needs it; keep it afterwards so
+  // re-entering the section doesn't re-upload the model
+  const [everOn, setEverOn] = useState(false)
+  useEffect(() => { if (!idle) setEverOn(true) }, [idle])
   const grabbable = DRAGGABLE.has(relic) && !idle
 
   // reset the reader's rotation when a different relic takes the stage
@@ -116,11 +123,13 @@ export default function Stage({ relic, pos }) {
       onPointerCancel={grabbable ? onUp : undefined}
       aria-hidden="true"
     >
-      <Canvas className="absolute! inset-0" camera={{ fov: 35, position: [0, 0, 9] }} dpr={DPR}
-              frameloop={idle ? 'never' : 'always'}
-              gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}>
-        <StageScene relic={relic} pos={pos} />
-      </Canvas>
+      {everOn && (
+        <Canvas className="absolute! inset-0" camera={{ fov: 35, position: [0, 0, 9] }} dpr={DPR}
+                frameloop={idle ? 'demand' : 'always'}
+                gl={GL}>
+          <StageScene relic={relic} pos={pos} />
+        </Canvas>
+      )}
     </div>
   )
 }

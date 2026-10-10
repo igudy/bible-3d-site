@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -13,8 +13,16 @@ const WORLD = 'world fixed inset-0 z-[1] overflow-hidden pointer-events-none'
 */
 export default function Worlds() {
   const refs = useRef({})
+  const [used, setUsed] = useState(null)
+
+  // Only mount the worlds a section actually asks for. Every other one costs a
+  // full-screen 2x canvas (~16MB) and a clip-path rewrite per frame to draw nothing.
+  useLayoutEffect(() => {
+    setUsed(new Set([...document.querySelectorAll('main section[data-world]')].map((s) => s.dataset.world)))
+  }, [])
 
   useEffect(() => {
+    if (!used) return
     const worlds = Object.entries(refs.current).map(([name, el]) => ({
       el, secs: [...document.querySelectorAll(`main section[data-world="${name}"]`)],
     }))
@@ -42,25 +50,36 @@ export default function Worlds() {
     }
     gsap.ticker.add(clip)
     return () => gsap.ticker.remove(clip)
-  }, [])
+  }, [used])
 
+  if (!used) return (<></>)
   return (
     <>
-      <div className={WORLD} data-world="night" ref={(el) => (refs.current.night = el)} aria-hidden="true">
-        <Particles mode="stars" />
-        <i className="bethlehem absolute top-[9vh] right-[16vw] size-1 rounded-full bg-white
-                      [box-shadow:0_0_30px_12px_rgb(200_220_255/0.55),0_0_120px_50px_rgb(120_160_255/0.25)]" />
-      </div>
-      <div className={WORLD} data-world="sand" ref={(el) => (refs.current.sand = el)} aria-hidden="true">
-        <Particles mode="dust" />
-        <i className="absolute top-[14vh] right-[22vw] size-[22vmin] rounded-full blur-[2px]
-                      bg-[radial-gradient(circle,#fff6dc_0,#ffd894_40%,rgb(255_200_120/0)_70%)]" />
-      </div>
-      <div className={WORLD} data-world="gold" ref={(el) => (refs.current.gold = el)} aria-hidden="true">
-        <i className="rays absolute top-[40%] left-[38%] size-[220vmax] -translate-x-1/2 -translate-y-1/2 animate-spin-slow" />
-      </div>
-      <div className={WORLD} data-world="fire" ref={(el) => (refs.current.fire = el)} aria-hidden="true"><Particles mode="embers" /></div>
-      <div className={WORLD} data-world="ink" ref={(el) => (refs.current.ink = el)} aria-hidden="true"><Particles mode="stars" dim /></div>
+      {used.has('night') && (
+        <div className={WORLD} data-world="night" ref={(el) => (refs.current.night = el)} aria-hidden="true">
+          <Particles mode="stars" />
+          <i className="bethlehem absolute top-[9vh] right-[16vw] size-1 rounded-full bg-white
+                        [box-shadow:0_0_30px_12px_rgb(200_220_255/0.55),0_0_120px_50px_rgb(120_160_255/0.25)]" />
+        </div>
+      )}
+      {used.has('sand') && (
+        <div className={WORLD} data-world="sand" ref={(el) => (refs.current.sand = el)} aria-hidden="true">
+          <Particles mode="dust" />
+          <i className="absolute top-[14vh] right-[22vw] size-[22vmin] rounded-full blur-[2px]
+                        bg-[radial-gradient(circle,#fff6dc_0,#ffd894_40%,rgb(255_200_120/0)_70%)]" />
+        </div>
+      )}
+      {used.has('gold') && (
+        <div className={WORLD} data-world="gold" ref={(el) => (refs.current.gold = el)} aria-hidden="true">
+          <i className="rays absolute top-[40%] left-[38%] size-[220vmax] -translate-x-1/2 -translate-y-1/2 animate-spin-slow" />
+        </div>
+      )}
+      {used.has('fire') && (
+        <div className={WORLD} data-world="fire" ref={(el) => (refs.current.fire = el)} aria-hidden="true"><Particles mode="embers" /></div>
+      )}
+      {used.has('ink') && (
+        <div className={WORLD} data-world="ink" ref={(el) => (refs.current.ink = el)} aria-hidden="true"><Particles mode="stars" dim /></div>
+      )}
     </>
   )
 }
@@ -79,10 +98,12 @@ function Particles({ mode, dim }) {
       : { x: innerWidth * (0.3 + Math.random() * 0.7), y: anywhere ? Math.random() * innerHeight : innerHeight + 10,
           r: 0.6 + Math.random() * 2, vy: 0.3 + Math.random() * 1.2, sway: Math.random() * 6.28, life: 0.4 + Math.random() * 0.6 }
     const size = () => {
-      const dpr = Math.min(devicePixelRatio, 2)
+      // a backdrop of soft dots gains nothing from retina pixels, and the fill cost
+      // is quadratic in dpr — 1.5 instead of 2 is 44% less to paint every frame
+      const dpr = Math.min(devicePixelRatio, innerWidth < 900 ? 1.25 : 1.5)
       c.width = innerWidth * dpr; c.height = innerHeight * dpr
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      const n = stars ? (dim ? 140 : 320) : dust ? 160 : 120
+      const n = stars ? (dim ? 90 : 180) : dust ? 120 : 90
       parts = Array.from({ length: innerWidth < 900 ? Math.round(n / 2) : n }, () => spawn(true))
     }
     let t = 0
