@@ -1,51 +1,67 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { DPR, GL } from './StatueAct'
-import * as THREE from 'three'
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { crossBeats, read } from '../data/content'
 
-const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-// Phones get Golgotha as words only. The crucifixion model is 2MB and a whole WebGL
-// context for a chapter that reads fine without it, and it was not drawing on iOS anyway.
-const NARROW = innerWidth < 900
 const ease = [0.2, 0.7, 0.2, 1]
 
 // the catalogue labels in the top corners (hidden on small screens)
 const META = 'absolute z-[3] hidden font-mono text-[10px] leading-[1.6] tracking-[0.2em] uppercase text-white lg:block'
 
 /*
-  The Cross. The section is ~3 screens tall with a sticky frame and holds two views:
+  Golgotha, drawn rather than modelled.
 
-    beat 0  the group faces you          — the death
-    (turn)  it rotates 180° as you scroll
-    beat 1  you are behind the group     — the burial
+  This chapter used to carry a 2MB crucifixion model in its own WebGL context. It was the
+  slowest thing on the page on a laptop and never drew at all on iOS, so it is gone. In its
+  place the two beats each get a line drawing: three crosses on the hill while He dies, then
+  the sealed tomb with the stone rolled across. Stroke-only SVG — it costs a paint, not a
+  GPU context, and it scales to any screen without a single byte of download.
 
-  Each view is held while its two columns of scripture sit either side of the figures.
+    beat 0  three crosses   — the death
+    beat 1  the sealed tomb — the burial
 */
+
+// viewBox 0 0 200 260. Three crosses on the hill: the centre one taller and forward.
+const CROSS_ART = [
+  'M10 242 L190 242',
+  'M100 34 L100 242', 'M52 96 L148 96',
+  'M42 114 L42 242', 'M16 150 L68 150',
+  'M158 114 L158 242', 'M132 150 L184 150',
+]
+// The tomb: the rock face, the dark of the opening, and the stone rolled clear of it.
+const TOMB_ART = [
+  'M10 242 L190 242',
+  'M52 242 L52 158 A48 48 0 0 1 148 158 L148 242',
+  'M80 242 L80 178 A20 20 0 0 1 120 178 L120 242',
+  'M168 204 m-36 0 a36 36 0 1 0 72 0 a36 36 0 1 0 -72 0',
+  'M168 168 L168 240',
+]
+
+function Drawing({ paths }) {
+  return (
+    // A plain fade, not a stroke-dash draw-on: framer-motion's pathLength leaves
+    // stroke-dasharray at "1px 1px" here, which renders the whole thing as an invisible
+    // dotted hairline. Fading in is also a good deal cheaper.
+    <motion.svg
+      viewBox="0 0 200 260" className="cross-art size-full overflow-visible text-white/90"
+      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      transition={{ duration: 1.1, ease: [0.2, 0.7, 0.2, 1] }}
+    >
+      {paths.map((d) => (
+        /* strokeWidth is in viewBox units on purpose, so the line thickens with the
+           drawing instead of staying a hairline on a big screen */
+        <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth="1.7"
+              strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </motion.svg>
+  )
+}
+
 export default function CrossAct() {
   const root = useRef()
   const turn = useRef(0)   // 0 → 1 across the whole section
   const [beat, setBeat] = useState(0)
-  const [live, setLive] = useState(false)
-  const [near, setNear] = useState(false)
-
-  // only render the 3D while this chapter is on screen
-  useEffect(() => {
-    const r = root.current.getBoundingClientRect()
-    if (r.top < innerHeight * 2 && r.bottom > -innerHeight) setNear(true)
-    const hold = new IntersectionObserver(([e]) => setNear(e.isIntersecting), { rootMargin: '100% 0px' })
-    hold.observe(root.current)
-    const io = new IntersectionObserver(([e]) => setLive(e.isIntersecting), { rootMargin: '10% 0px' })
-    io.observe(root.current)
-    return () => { io.disconnect(); hold.disconnect() }
-  }, [])
-
   useGSAP(() => {
     ScrollTriggerSafe(root.current, (p) => {
       turn.current = p
@@ -57,14 +73,16 @@ export default function CrossAct() {
   return (
     <section id="cross" data-world="dusk" data-stage="off" ref={root} className="relative z-[4] h-[190svh] min-h-0 bg-[#0a0509] p-0 lg:h-[320svh]">
       <div className="cross-frame sticky top-0 h-dvh overflow-hidden">
-        {!NARROW && near && (
-          <Canvas className="absolute! inset-0 z-[1]" camera={{ fov: 32, position: [0, 0, 10] }} dpr={DPR}
-                  frameloop={live ? 'always' : 'demand'}
-                  gl={GL}>
-            <Lights />
-            {live && <Suspense fallback={null}><Group turn={turn} /></Suspense>}
-          </Canvas>
-        )}
+        {/* the middle of the chapter: a drawing per beat, with room left for the copy */}
+        <div className="absolute inset-0 z-[1] grid place-items-center pt-[190px] pb-[270px] lg:p-0" aria-hidden="true">
+          <div className="aspect-[200/260] h-[min(34vh,290px)] lg:h-[min(68vh,580px)]">
+            <AnimatePresence mode="wait">
+              <motion.div key={b.id} className="size-full">
+                <Drawing paths={b.id === crossBeats[0].id ? CROSS_ART : TOMB_ART} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
 
         {/* the title already names the section on small screens */}
         <div className={`${META} top-24 left-rail`}>The Cross<br /><span className="text-ink3">Death &amp; burial</span></div>
@@ -105,8 +123,8 @@ export default function CrossAct() {
             ))}
 
             <motion.p
-              className="absolute bottom-[84px] left-1/2 hidden w-[min(86vw,620px)] -translate-x-1/2 text-center font-serif
-                         text-[17px] leading-[1.35] text-white/60 lg:block"
+              className="absolute bottom-[210px] left-1/2 w-[min(86vw,620px)] -translate-x-1/2 text-center font-serif
+                         text-[15px] leading-[1.35] text-white/60 lg:bottom-[84px] lg:text-[17px]"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, ease, delay: 0.35 }}
             >
               {b.foot}
@@ -131,84 +149,4 @@ function ScrollTriggerSafe(el, onUpdate) {
   gsap.timeline({
     scrollTrigger: { trigger: el, start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: (st) => onUpdate(st.progress) },
   })
-}
-
-/* Cold, low light: a dark sky with one hard key, so the stone reads against the dusk */
-function Lights() {
-  const { gl, scene } = useThree()
-  useMemo(() => {
-    const pm = new THREE.PMREMGenerator(gl)
-    scene.environment = pm.fromScene(new RoomEnvironment(), 0.06).texture
-    pm.dispose()
-  }, [gl, scene])
-  return (
-    <>
-      <hemisphereLight args={['#8fa2c8', '#140d12', 0.5]} />
-      <directionalLight position={[5, 7, 6]} intensity={2.4} color="#ffe9cf" />
-      <directionalLight position={[-6, 2, -5]} intensity={1.5} color="#7f93c8" />
-    </>
-  )
-}
-
-let dracoLoader
-function Group({ turn }) {
-  const gltf = useLoader(GLTFLoader, '/models/cross/cross.glb', (loader) => {
-    if (!dracoLoader) { dracoLoader = new DRACOLoader(); dracoLoader.setDecoderPath('/draco/') }
-    loader.setDRACOLoader(dracoLoader)
-  })
-  const { camera } = useThree()
-  const group = useRef()
-  const spin = useRef(0)
-  const mouse = useRef({ x: 0, y: 0 })
-
-  useEffect(() => {
-    const on = (e) => { mouse.current = { x: e.clientX / innerWidth - 0.5, y: e.clientY / innerHeight - 0.5 } }
-    addEventListener('pointermove', on)
-    return () => removeEventListener('pointermove', on)
-  }, [])
-
-  const { obj, height } = useMemo(() => {
-    const o = gltf.scene.clone(true)
-    o.traverse((m) => {
-      if (m.isLight || m.isCamera) m.removeFromParent()
-      if (m.isMesh) {
-        m.material = m.material.clone()
-        m.material.roughness = 0.92
-        m.material.metalness = 0
-        m.material.envMapIntensity = 0.55
-      }
-    })
-    const box = new THREE.Box3().setFromObject(o)
-    const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3())
-    const k = 5 / size.y
-    const g = new THREE.Group()
-    o.position.set(-c.x, -box.min.y, -c.z)
-    g.add(o)
-    g.scale.setScalar(k)
-    return { obj: g, height: 5 }
-  }, [gltf])
-
-  useFrame((_, dt) => {
-    // Hold the front view, turn through the middle of the section, hold the back view
-    const p = THREE.MathUtils.clamp((turn.current - 0.28) / 0.44, 0, 1)
-    const eased = p * p * (3 - 2 * p)
-    const target = eased * Math.PI
-    spin.current += (target - spin.current) * (reduce ? 1 : 1 - Math.exp(-dt * 6))
-    group.current.rotation.y = spin.current + mouse.current.x * 0.12
-
-    // Fill the frame: the cross runs nearly the full height and the plinth crops off the bottom.
-    // Pull back a little through the turn so the whole group reads from behind.
-    const r = THREE.MathUtils.lerp(7.4, 8.8, eased)
-    const halfH = r * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
-    // Anchor the top of the cross just under the frame edge; the plinth crops off the bottom
-    const cy = height + 0.3 - halfH
-    camera.position.set(0, cy - mouse.current.y * 0.2, r)
-    camera.lookAt(0, cy, 0)
-  })
-
-  return (
-    <group ref={group}>
-      <primitive object={obj} />
-    </group>
-  )
 }
