@@ -107,7 +107,7 @@ export default function StatueAct({ id, word, beats, meta, actions, model = '/mo
   const b = beats[beat]
   return (
     <section id={id} data-world="stone" data-stage="off" ref={root}
-             style={{ height: `${tall * 100}dvh` }}
+             style={{ height: `${tall * 100}svh` }}   /* svh, not dvh: this drives scroll length and must not move */
              className={`relative z-[4] min-h-0 p-0 text-slate-ink ${tone === 'warm' ? 'bg-[#efe6d8]' : 'bg-[#e9e8e5]'}`}>
       <div className={`${tone === 'warm' ? 'statue-frame-warm' : 'statue-frame'} sticky top-0 h-dvh overflow-hidden`}>
         {layout === 'beats' && (split ? (

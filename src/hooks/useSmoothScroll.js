@@ -5,6 +5,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 gsap.registerPlugin(ScrollTrigger)
 
+// On iOS the URL bar collapses as you scroll, which fires a resize and makes ScrollTrigger
+// re-measure mid-gesture. Combined with pinned sections that is enough to throw every
+// start/end out by thousands of pixels, so tell it to ignore those resizes.
+ScrollTrigger.config({ ignoreMobileResize: true })
+
 export let lenis = null
 
 // Lenis gives the weighty smooth scroll; GSAP's ticker drives it so ScrollTrigger stays in sync.

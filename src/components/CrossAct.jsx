@@ -11,6 +11,9 @@ import { useGSAP } from '@gsap/react'
 import { crossBeats, read } from '../data/content'
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+// Phones get Golgotha as words only. The crucifixion model is 2MB and a whole WebGL
+// context for a chapter that reads fine without it, and it was not drawing on iOS anyway.
+const NARROW = innerWidth < 900
 const ease = [0.2, 0.7, 0.2, 1]
 
 // the catalogue labels in the top corners (hidden on small screens)
@@ -52,9 +55,9 @@ export default function CrossAct() {
 
   const b = crossBeats[beat]
   return (
-    <section id="cross" data-world="dusk" data-stage="off" ref={root} className="relative z-[4] h-[300dvh] min-h-0 bg-[#0a0509] p-0 lg:h-[320dvh]">
+    <section id="cross" data-world="dusk" data-stage="off" ref={root} className="relative z-[4] h-[190svh] min-h-0 bg-[#0a0509] p-0 lg:h-[320svh]">
       <div className="cross-frame sticky top-0 h-dvh overflow-hidden">
-        {near && (
+        {!NARROW && near && (
           <Canvas className="absolute! inset-0 z-[1]" camera={{ fov: 32, position: [0, 0, 10] }} dpr={DPR}
                   frameloop={live ? 'always' : 'demand'}
                   gl={GL}>
